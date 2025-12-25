@@ -47,24 +47,32 @@ export default function AudioCallUI() {
   }, []);
 
   /* =======================
-     RINGTONE (INCOMING)
+     RINGTONE (INCOMING) - Only for receiver when call not picked up
   ======================== */
   useEffect(() => {
+    // Only play ringtone if user is receiver AND call hasn't been picked up
     if (isReceiver && call && !call.pickedUp) {
       ringtoneRef.current?.play().catch(() => {});
     } else {
+      // Stop ringtone when call is picked up or if user is not receiver
       ringtoneRef.current?.pause();
       if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
     }
 
-    return () => ringtoneRef.current?.pause();
-  }, [call?.pickedUp, isReceiver]);
+    return () => {
+      ringtoneRef.current?.pause();
+      if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
+    };
+  }, [call?.pickedUp, isReceiver, call]);
 
   /* =======================
      ACCEPT CALL
   ======================== */
   const acceptCall = async () => {
+    // Stop ringtone immediately
     ringtoneRef.current?.pause();
+    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
+    
     setCall({ ...call, pickedUp: true });
     await startCall();
   };
@@ -109,6 +117,7 @@ export default function AudioCallUI() {
   ======================== */
   const handleEnd = async (callStatus = "completed") => {
     ringtoneRef.current?.pause();
+    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
     await leaveAgora();
     endCall(callStatus, seconds);
     joinedRef.current = false;
@@ -122,8 +131,8 @@ export default function AudioCallUI() {
 
   return (
     <>
-      {/* RINGTONE */}
-      <audio ref={ringtoneRef} loop src="/sounds/ringtone.mp3" />
+      {/* RINGTONE - Only for receiver */}
+      {isReceiver && <audio ref={ringtoneRef} loop src="/sounds/ringtone.mp3" />}
 
       <div
         className={`fixed z-[999] text-white transition-all duration-300
