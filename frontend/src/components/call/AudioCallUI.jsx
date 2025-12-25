@@ -30,21 +30,31 @@ export default function AudioCallUI() {
 
     try {
       await joinAgora({ channel: call.callId, isVideo: false });
+      console.log("Successfully joined Agora channel");
     } catch (e) {
       joinedRef.current = false;
-      console.error(e);
+      console.error("Failed to join Agora:", e);
     }
   };
 
+  /* =======================
+     JOIN AGORA WHEN CALL IS PICKED UP
+  ======================== */
   useEffect(() => {
-    if (!isReceiver) startCall();
+    // Both caller and receiver join only after call is picked up
+    if (call.pickedUp && !joinedRef.current) {
+      console.log("Call picked up, joining Agora...");
+      startCall();
+    }
 
     return () => {
-      leaveAgora();
-      joinedRef.current = false;
+      if (joinedRef.current) {
+        console.log("Leaving Agora...");
+        leaveAgora();
+        joinedRef.current = false;
+      }
     };
-    // eslint-disable-next-line
-  }, []);
+  }, [call.pickedUp]);
 
   /* =======================
      RINGTONE (INCOMING) - Only for receiver when call not picked up
@@ -69,12 +79,14 @@ export default function AudioCallUI() {
      ACCEPT CALL
   ======================== */
   const acceptCall = async () => {
+    console.log("Accepting call...");
     // Stop ringtone immediately
     ringtoneRef.current?.pause();
     if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
     
+    // Update call state to pickedUp: true
+    // This will trigger the useEffect above to join Agora for both sides
     setCall({ ...call, pickedUp: true });
-    await startCall();
   };
 
   /* =======================
@@ -116,11 +128,16 @@ export default function AudioCallUI() {
      END CALL
   ======================== */
   const handleEnd = async (callStatus = "completed") => {
+    console.log("Ending call with status:", callStatus);
     ringtoneRef.current?.pause();
     if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
-    await leaveAgora();
+    
+    if (joinedRef.current) {
+      await leaveAgora();
+      joinedRef.current = false;
+    }
+    
     endCall(callStatus, seconds);
-    joinedRef.current = false;
   };
 
   const statusText = () => {
@@ -176,13 +193,13 @@ export default function AudioCallUI() {
             <>
               <button
                 onClick={acceptCall}
-                className="px-6 py-3 bg-green-600 rounded-full"
+                className="px-6 py-3 bg-green-600 rounded-full hover:bg-green-700 transition-colors"
               >
                 Accept
               </button>
               <button
                 onClick={() => handleEnd("rejected")}
-                className="px-6 py-3 bg-red-600 rounded-full"
+                className="px-6 py-3 bg-red-600 rounded-full hover:bg-red-700 transition-colors"
               >
                 Reject
               </button>
@@ -191,8 +208,8 @@ export default function AudioCallUI() {
             <>
               <button
                 onClick={handleMic}
-                className={`p-4 rounded-full ${
-                  micOn ? "bg-white/20" : "bg-red-500"
+                className={`p-4 rounded-full transition-colors ${
+                  micOn ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"
                 }`}
               >
                 {micOn ? <Mic /> : <MicOff />}
@@ -200,8 +217,8 @@ export default function AudioCallUI() {
 
               <button
                 onClick={toggleSpeaker}
-                className={`p-4 rounded-full ${
-                  speakerOn ? "bg-white/20" : "bg-red-500"
+                className={`p-4 rounded-full transition-colors ${
+                  speakerOn ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"
                 }`}
               >
                 {speakerOn ? <Volume2 /> : <VolumeX />}
@@ -209,7 +226,7 @@ export default function AudioCallUI() {
 
               <button
                 onClick={() => handleEnd("completed")}
-                className="p-4 rounded-full bg-red-600"
+                className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
               >
                 <PhoneOff />
               </button>
