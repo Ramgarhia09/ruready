@@ -31,7 +31,9 @@ const AddReelModal = ({ isOpen, onClose, currentUser }) => {
       alert('Please add a title and select a file');
       return;
     }
+
     setUploading(true);
+
     try {
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `reels/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -77,6 +79,7 @@ const AddReelModal = ({ isOpen, onClose, currentUser }) => {
             <X size={24} className="text-white" />
           </button>
         </div>
+
         <div className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Upload Video/Image</label>
@@ -97,6 +100,7 @@ const AddReelModal = ({ isOpen, onClose, currentUser }) => {
               </div>
             )}
           </div>
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Title</label>
             <input
@@ -108,6 +112,7 @@ const AddReelModal = ({ isOpen, onClose, currentUser }) => {
               disabled={uploading}
             />
           </div>
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Hashtags</label>
             <input
@@ -119,6 +124,7 @@ const AddReelModal = ({ isOpen, onClose, currentUser }) => {
               disabled={uploading}
             />
           </div>
+
           <button
             onClick={handleSubmit}
             disabled={uploading}
@@ -161,6 +167,7 @@ const CommentModal = ({ isOpen, onClose, reel }) => {
             <X size={24} className="text-white" />
           </button>
         </div>
+
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
           {comments.map((c) => (
             <div key={c.id} className="flex gap-3 bg-white p-3 rounded-xl shadow-sm">
@@ -177,6 +184,7 @@ const CommentModal = ({ isOpen, onClose, reel }) => {
             </div>
           ))}
         </div>
+
         <div className="border-t border-gray-200 bg-white p-4 flex gap-2 rounded-b-3xl">
           <input
             type="text"
@@ -198,23 +206,31 @@ const CommentModal = ({ isOpen, onClose, reel }) => {
   );
 };
 
-// Reel Video/Image Component
+// Reel Video/Image Component - FIXED
 const ReelVideo = ({ reel, isActive }) => {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
+  // KEY FIX: Properly handle video playback
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || reel.type !== 'video') return;
 
     if (isActive) {
+      // Play video when reel becomes active
       const playPromise = videoElement.play();
       if (playPromise !== undefined) {
-        playPromise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+        playPromise
+          .then(() => setIsPlaying(true))
+          .catch((error) => {
+            console.log("Autoplay prevented:", error);
+            setIsPlaying(false);
+          });
       }
     } else {
+      // Pause and reset when reel is not active
       videoElement.pause();
       setIsPlaying(false);
     }
@@ -226,7 +242,9 @@ const ReelVideo = ({ reel, isActive }) => {
         videoRef.current.pause();
         setIsPlaying(false);
       } else {
-        videoRef.current.play().then(() => setIsPlaying(true));
+        videoRef.current.play()
+          .then(() => setIsPlaying(true))
+          .catch((error) => console.log("Play error:", error));
       }
     }
   };
@@ -240,8 +258,8 @@ const ReelVideo = ({ reel, isActive }) => {
   };
 
   return (
-    <div
-      className="relative w-full h-full bg-black overflow-hidden rounded-2xl"
+    <div 
+      className="relative w-full h-full bg-black overflow-hidden rounded-2xl shadow-2xl"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
       onClick={togglePlayPause}
@@ -256,23 +274,26 @@ const ReelVideo = ({ reel, isActive }) => {
           muted={isMuted}
         />
       ) : (
-        <img
-          src={reel.url}
+        <img 
+          src={reel.url} 
           alt={reel.title}
           className="w-full h-full object-cover"
         />
       )}
 
+      {/* Play button overlay when paused */}
       {showControls && reel.type === 'video' && !isPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-all">
           <div className="bg-white/30 backdrop-blur-md p-5 rounded-full animate-pulse">
             <Play size={50} className="text-white" fill="white" />
           </div>
         </div>
       )}
 
+      {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"></div>
 
+      {/* User Info */}
       <div className="absolute bottom-4 left-4 right-20 text-white pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center ring-2 ring-white">
@@ -286,13 +307,17 @@ const ReelVideo = ({ reel, isActive }) => {
         <p className="text-sm opacity-95 font-medium drop-shadow-lg">{reel.hashtag}</p>
       </div>
 
+      {/* Mute Button (Videos only) */}
       {reel.type === 'video' && (
         <div className="absolute right-4 bottom-20 pointer-events-auto">
-          <button
+          <button 
             onClick={toggleMute}
             className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:scale-110 hover:bg-white/30 transition-all"
           >
-            {isMuted ? <VolumeX className="text-white" size={24} /> : <Volume2 className="text-white" size={24} />}
+            {isMuted ? 
+              <VolumeX className="text-white" size={24} /> : 
+              <Volume2 className="text-white" size={24} />
+            }
           </button>
         </div>
       )}
@@ -303,18 +328,20 @@ const ReelVideo = ({ reel, isActive }) => {
 const ReelsPage = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+
   const [reels, setReels] = useState([]);
   const [currentReelIndex, setCurrentReelIndex] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-
   const containerRef = useRef(null);
   const touchStartY = useRef(0);
   const isScrolling = useRef(false);
 
+  // Load reels from Firebase
   useEffect(() => {
     const q = query(collection(db, "reels"), orderBy("createdAt", "desc"));
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const reelsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -324,6 +351,7 @@ const ReelsPage = () => {
     }, (error) => {
       console.error("Error loading reels:", error);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -337,8 +365,10 @@ const ReelsPage = () => {
 
   const handleTouchEnd = (e) => {
     if (isScrolling.current) return;
+    
     const touchEndY = e.changedTouches[0].clientY;
     const diff = touchStartY.current - touchEndY;
+
     if (Math.abs(diff) > 50) {
       isScrolling.current = true;
       if (diff > 0 && currentReelIndex < reels.length - 1) {
@@ -346,13 +376,16 @@ const ReelsPage = () => {
       } else if (diff < 0 && currentReelIndex > 0) {
         setCurrentReelIndex(prev => prev - 1);
       }
-      setTimeout(() => { isScrolling.current = false; }, 600);
+      setTimeout(() => {
+        isScrolling.current = false;
+      }, 600);
     }
   };
 
   const handleWheel = (e) => {
     e.preventDefault();
     if (isScrolling.current) return;
+
     if (Math.abs(e.deltaY) > 30) {
       isScrolling.current = true;
       if (e.deltaY > 0 && currentReelIndex < reels.length - 1) {
@@ -360,7 +393,9 @@ const ReelsPage = () => {
       } else if (e.deltaY < 0 && currentReelIndex > 0) {
         setCurrentReelIndex(prev => prev - 1);
       }
-      setTimeout(() => { isScrolling.current = false; }, 600);
+      setTimeout(() => {
+        isScrolling.current = false;
+      }, 600);
     }
   };
 
@@ -373,8 +408,8 @@ const ReelsPage = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex overflow-hidden">
-      {/* Desktop Sidebar */}
+    <div className="h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex overflow-hidden">
+      {/* Left Sidebar - Desktop */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white shadow-xl z-40">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -384,28 +419,48 @@ const ReelsPage = () => {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">Ruready</h1>
           </div>
         </div>
+
         <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => handleNavigation('/dashboard')} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group">
+          <button
+            onClick={() => handleNavigation('/dashboard')}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group"
+          >
             <Home size={24} className="text-gray-600 group-hover:text-pink-500 transition-colors" />
             <span className="text-gray-700 font-medium text-lg group-hover:text-pink-500 transition-colors">Home</span>
           </button>
-          <button onClick={() => handleNavigation('/reels')} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 text-left">
+
+          <button
+            onClick={() => handleNavigation('/reels')}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 transition-all text-left"
+          >
             <Grid size={24} className="text-pink-500" />
             <span className="text-pink-500 font-semibold text-lg">Reels</span>
           </button>
-          <button onClick={() => handleNavigation('/userList')} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group">
+
+          <button
+            onClick={() => handleNavigation('/userList')}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group"
+          >
             <MessageCircle size={24} className="text-gray-600 group-hover:text-pink-500 transition-colors" />
             <span className="text-gray-700 font-medium text-lg group-hover:text-pink-500 transition-colors">Chat</span>
           </button>
-          <button onClick={() => handleNavigation('/myprofile')} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group">
+
+          <button
+            onClick={() => handleNavigation('/myprofile')}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group"
+          >
             <User size={24} className="text-gray-600 group-hover:text-pink-500 transition-colors" />
             <span className="text-gray-700 font-medium text-lg group-hover:text-pink-500 transition-colors">Profile</span>
           </button>
         </nav>
+
         <div className="p-4 m-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl text-white shadow-lg">
           <h3 className="font-bold mb-2">Go Premium</h3>
           <p className="text-sm mb-3 opacity-90">Unlock all features!</p>
-          <button onClick={() => handleNavigation('/premium')} className="w-full bg-white text-pink-500 py-2 px-4 rounded-xl font-semibold text-sm hover:bg-gray-100 transition-all hover:scale-105">
+          <button
+            onClick={() => handleNavigation('/premium')}
+            className="w-full bg-white text-pink-500 py-2 px-4 rounded-xl font-semibold text-sm hover:bg-gray-100 transition-all hover:scale-105"
+          >
             Upgrade
           </button>
         </div>
@@ -414,10 +469,16 @@ const ReelsPage = () => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-64 flex flex-col h-screen">
         {/* Header */}
-        <header className="bg-white/90 backdrop-blur-xl shadow-lg z-30 flex-shrink-0 border-b border-gray-100">
-          <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">Reels</h1>
-            <button
+        <header className="bg-white/90 backdrop-blur-xl shadow-sm z-30 flex-shrink-0">
+          <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">R</span>
+              </div>
+              <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">R U Ready</h1>
+            </div>
+
+            <button 
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 p-3 rounded-full shadow-lg transition-all hover:scale-110 active:scale-95"
             >
@@ -427,38 +488,41 @@ const ReelsPage = () => {
         </header>
 
         {/* Reels Container */}
-        <main
+        <main 
           ref={containerRef}
-          className="flex-1 overflow-hidden relative bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50"
+          className="flex-1 overflow-hidden relative"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onWheel={handleWheel}
         >
           {reels.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-600 px-4">
-              <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-purple-500 rounded-3xl flex items-center justify-center mb-6 shadow-2xl">
+            <div className="h-full flex flex-col items-center justify-center text-gray-500 px-4">
+              <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-purple-500 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                 <Grid size={48} className="text-white" />
               </div>
               <p className="text-2xl font-bold mb-2">No reels yet</p>
-              <p className="text-gray-500">Be the first to create one!</p>
+              <p className="text-gray-400">Create the first one and start sharing!</p>
             </div>
           ) : (
-            <div
+            <div 
               className="h-full transition-transform duration-500 ease-out"
-              style={{ transform: `translateY(-${currentReelIndex * 100}%)` }}
+              style={{ 
+                transform: `translateY(-${currentReelIndex * 100}%)`,
+              }}
             >
               {reels.map((reel, index) => (
-                <div
-                  key={reel.id}
-                  className="absolute inset-0 w-full h-full flex items-center justify-center p-4"
-                  style={{ transform: `translateY(${index * 100}%)` }}
+                <div 
+                  key={reel.id} 
+                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center p-4 lg:p-8"
+                  style={{
+                    transform: `translateY(${index * 100}%)`
+                  }}
                 >
-                  {/* Instagram-like Reel Card */}
-                  <div
-                    className="relative w-full max-w-[540px] aspect-[9/16] bg-white rounded-3xl overflow-hidden shadow-2xl ring-8 ring-white/50"
-                    style={{ maxHeight: '96vh' }}
-                  >
-                    <ReelVideo reel={reel} isActive={index === currentReelIndex} />
+                  <div className="w-full max-w-md lg:max-w-lg h-[calc(100%-2rem)] lg:h-[calc(100%-4rem)]">
+                    <ReelVideo 
+                      reel={reel} 
+                      isActive={index === currentReelIndex}
+                    />
                   </div>
                 </div>
               ))}
@@ -466,18 +530,22 @@ const ReelsPage = () => {
           )}
         </main>
 
-        {/* Desktop Scroll Indicator */}
+        {/* Scroll Indicator - Desktop */}
         {reels.length > 0 && (
           <div className="hidden lg:block fixed right-8 top-1/2 -translate-y-1/2 z-30">
-            <div className="flex flex-col gap-3 bg-white/70 backdrop-blur-md p-4 rounded-full shadow-xl border border-white/50">
+            <div className="flex flex-col gap-3 bg-white/30 backdrop-blur-lg p-3 rounded-full shadow-lg">
               {reels.map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => !isScrolling.current && setCurrentReelIndex(index)}
-                  className={`rounded-full transition-all duration-300 ${
-                    index === currentReelIndex
-                      ? 'bg-gradient-to-b from-pink-500 to-purple-600 w-3 h-12 shadow-lg'
-                      : 'bg-gray-300 hover:bg-pink-300 w-2 h-2'
+                  onClick={() => {
+                    if (!isScrolling.current) {
+                      setCurrentReelIndex(index);
+                    }
+                  }}
+                  className={`rounded-full transition-all ${
+                    index === currentReelIndex 
+                      ? 'bg-gradient-to-b from-pink-500 to-purple-600 w-3 h-10' 
+                      : 'bg-gray-300 hover:bg-pink-300 w-3 h-3'
                   }`}
                 />
               ))}
@@ -489,38 +557,58 @@ const ReelsPage = () => {
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="fixed bottom-24 lg:bottom-12 right-6 lg:right-32 z-30 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 p-4 rounded-full shadow-2xl transition-all hover:scale-110"
+            className="fixed bottom-24 lg:bottom-10 right-6 lg:right-28 z-30 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 p-4 rounded-full shadow-xl transition-all hover:scale-110 active:scale-95 animate-bounce"
           >
-            <ChevronUp className="text-white" size={28} />
+            <ChevronUp className="text-white" size={24} />
           </button>
         )}
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden bg-white/90 backdrop-blur-xl shadow-2xl border-t border-gray-200 fixed bottom-0 left-0 right-0 z-40">
+      {/* Bottom Navigation - Mobile */}
+      <nav className="lg:hidden bg-gradient-to-r from-pink-500 to-purple-600 shadow-2xl fixed bottom-0 left-0 right-0 z-40">
         <div className="flex justify-around items-center py-3">
-          <button onClick={() => handleNavigation('/dashboard')} className="flex flex-col items-center gap-1 text-gray-600 hover:text-pink-500 py-2">
+          <button 
+            onClick={() => handleNavigation('/dashboard')} 
+            className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-all py-2 hover:scale-110"
+          >
             <Home size={24} />
-            <span className="text-[10px]">Home</span>
+            <span className="text-[10px] font-medium">Home</span>
           </button>
-          <button className="flex flex-col items-center gap-1 text-pink-600 py-2 scale-110">
-            <Grid size={28} strokeWidth={3} />
+          <button 
+            onClick={() => handleNavigation('/reels')} 
+            className="flex flex-col items-center gap-1 text-white py-2 scale-110"
+          >
+            <Grid size={24} />
             <span className="text-[10px] font-bold">Reels</span>
           </button>
-          <button onClick={() => handleNavigation('/userList')} className="flex flex-col items-center gap-1 text-gray-600 hover:text-pink-500 py-2">
+          <button 
+            onClick={() => handleNavigation('/userList')} 
+            className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-all py-2 hover:scale-110"
+          >
             <MessageCircle size={24} />
-            <span className="text-[10px]">Chat</span>
+            <span className="text-[10px] font-medium">Chat</span>
           </button>
-          <button onClick={() => handleNavigation('/myprofile')} className="flex flex-col items-center gap-1 text-gray-600 hover:text-pink-500 py-2">
+          <button 
+            onClick={() => handleNavigation('/myprofile')} 
+            className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-all py-2 hover:scale-110"
+          >
             <User size={24} />
-            <span className="text-[10px]">Profile</span>
+            <span className="text-[10px] font-medium">Profile</span>
           </button>
         </div>
       </nav>
 
       {/* Modals */}
-      <AddReelModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} currentUser={currentUser} />
-      <CommentModal isOpen={showCommentModal} onClose={() => setShowCommentModal(false)} reel={reels[currentReelIndex]} />
+      <AddReelModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)}
+        currentUser={currentUser}
+      />
+      <CommentModal 
+        isOpen={showCommentModal} 
+        onClose={() => setShowCommentModal(false)}
+        reel={reels[currentReelIndex]}
+      />
     </div>
   );
 };
