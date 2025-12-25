@@ -30,63 +30,43 @@ export default function AudioCallUI() {
 
     try {
       await joinAgora({ channel: call.callId, isVideo: false });
-      console.log("Successfully joined Agora channel");
     } catch (e) {
       joinedRef.current = false;
-      console.error("Failed to join Agora:", e);
+      console.error(e);
     }
   };
 
-  /* =======================
-     JOIN AGORA WHEN CALL IS PICKED UP
-  ======================== */
   useEffect(() => {
-    // Both caller and receiver join only after call is picked up
-    if (call.pickedUp && !joinedRef.current) {
-      console.log("Call picked up, joining Agora...");
-      startCall();
-    }
+    if (!isReceiver) startCall();
 
     return () => {
-      if (joinedRef.current) {
-        console.log("Leaving Agora...");
-        leaveAgora();
-        joinedRef.current = false;
-      }
+      leaveAgora();
+      joinedRef.current = false;
     };
-  }, [call.pickedUp]);
+    // eslint-disable-next-line
+  }, []);
 
   /* =======================
-     RINGTONE (INCOMING) - Only for receiver when call not picked up
+     RINGTONE (INCOMING)
   ======================== */
   useEffect(() => {
-    // Only play ringtone if user is receiver AND call hasn't been picked up
     if (isReceiver && call && !call.pickedUp) {
       ringtoneRef.current?.play().catch(() => {});
     } else {
-      // Stop ringtone when call is picked up or if user is not receiver
       ringtoneRef.current?.pause();
       if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
     }
 
-    return () => {
-      ringtoneRef.current?.pause();
-      if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
-    };
-  }, [call?.pickedUp, isReceiver, call]);
+    return () => ringtoneRef.current?.pause();
+  }, [call?.pickedUp, isReceiver]);
 
   /* =======================
      ACCEPT CALL
   ======================== */
   const acceptCall = async () => {
-    console.log("Accepting call...");
-    // Stop ringtone immediately
     ringtoneRef.current?.pause();
-    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
-    
-    // Update call state to pickedUp: true
-    // This will trigger the useEffect above to join Agora for both sides
     setCall({ ...call, pickedUp: true });
+    await startCall();
   };
 
   /* =======================
@@ -128,16 +108,10 @@ export default function AudioCallUI() {
      END CALL
   ======================== */
   const handleEnd = async (callStatus = "completed") => {
-    console.log("Ending call with status:", callStatus);
     ringtoneRef.current?.pause();
-    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
-    
-    if (joinedRef.current) {
-      await leaveAgora();
-      joinedRef.current = false;
-    }
-    
+    await leaveAgora();
     endCall(callStatus, seconds);
+    joinedRef.current = false;
   };
 
   const statusText = () => {
@@ -148,8 +122,8 @@ export default function AudioCallUI() {
 
   return (
     <>
-      {/* RINGTONE - Only for receiver */}
-      {isReceiver && <audio ref={ringtoneRef} loop src="/sounds/ringtone.mp3" />}
+      {/* RINGTONE */}
+      <audio ref={ringtoneRef} loop src="/sounds/ringtone.mp3" />
 
       <div
         className={`fixed z-[999] text-white transition-all duration-300
@@ -193,13 +167,13 @@ export default function AudioCallUI() {
             <>
               <button
                 onClick={acceptCall}
-                className="px-6 py-3 bg-green-600 rounded-full hover:bg-green-700 transition-colors"
+                className="px-6 py-3 bg-green-600 rounded-full"
               >
                 Accept
               </button>
               <button
                 onClick={() => handleEnd("rejected")}
-                className="px-6 py-3 bg-red-600 rounded-full hover:bg-red-700 transition-colors"
+                className="px-6 py-3 bg-red-600 rounded-full"
               >
                 Reject
               </button>
@@ -208,8 +182,8 @@ export default function AudioCallUI() {
             <>
               <button
                 onClick={handleMic}
-                className={`p-4 rounded-full transition-colors ${
-                  micOn ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"
+                className={`p-4 rounded-full ${
+                  micOn ? "bg-white/20" : "bg-red-500"
                 }`}
               >
                 {micOn ? <Mic /> : <MicOff />}
@@ -217,8 +191,8 @@ export default function AudioCallUI() {
 
               <button
                 onClick={toggleSpeaker}
-                className={`p-4 rounded-full transition-colors ${
-                  speakerOn ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"
+                className={`p-4 rounded-full ${
+                  speakerOn ? "bg-white/20" : "bg-red-500"
                 }`}
               >
                 {speakerOn ? <Volume2 /> : <VolumeX />}
@@ -226,7 +200,7 @@ export default function AudioCallUI() {
 
               <button
                 onClick={() => handleEnd("completed")}
-                className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
+                className="p-4 rounded-full bg-red-600"
               >
                 <PhoneOff />
               </button>
@@ -237,3 +211,4 @@ export default function AudioCallUI() {
     </>
   );
 }
+
