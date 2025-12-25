@@ -36,15 +36,20 @@ export default function AudioCallUI() {
     }
   };
 
+  /* =======================
+     JOIN AGORA WHEN CALL IS PICKED UP
+  ======================== */
   useEffect(() => {
-    if (!isReceiver) startCall();
+    // Only join Agora channel after call is picked up
+    if (call.pickedUp && !joinedRef.current) {
+      startCall();
+    }
 
     return () => {
       leaveAgora();
       joinedRef.current = false;
     };
-    // eslint-disable-next-line
-  }, []);
+  }, [call.pickedUp]);
 
   /* =======================
      RINGTONE (INCOMING) - Only for receiver when call not picked up
@@ -73,8 +78,9 @@ export default function AudioCallUI() {
     ringtoneRef.current?.pause();
     if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
     
+    // Update call state to pickedUp: true
+    // This will trigger the useEffect above to join Agora
     setCall({ ...call, pickedUp: true });
-    await startCall();
   };
 
   /* =======================
