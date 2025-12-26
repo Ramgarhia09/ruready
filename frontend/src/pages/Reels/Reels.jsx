@@ -206,20 +206,18 @@ const CommentModal = ({ isOpen, onClose, reel }) => {
   );
 };
 
-// Reel Video/Image Component - FIXED
+// Reel Video/Image Component
 const ReelVideo = ({ reel, isActive }) => {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  // KEY FIX: Properly handle video playback
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || reel.type !== 'video') return;
 
     if (isActive) {
-      // Play video when reel becomes active
       const playPromise = videoElement.play();
       if (playPromise !== undefined) {
         playPromise
@@ -230,7 +228,6 @@ const ReelVideo = ({ reel, isActive }) => {
           });
       }
     } else {
-      // Pause and reset when reel is not active
       videoElement.pause();
       setIsPlaying(false);
     }
@@ -259,7 +256,7 @@ const ReelVideo = ({ reel, isActive }) => {
 
   return (
     <div 
-      className="relative w-full h-full bg-black overflow-hidden rounded-2xl shadow-2xl"
+      className="relative w-full h-full bg-black overflow-hidden"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
       onClick={togglePlayPause}
@@ -408,9 +405,9 @@ const ReelsPage = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex overflow-hidden">
+    <div className="h-screen bg-white flex overflow-hidden">
       {/* Left Sidebar - Desktop */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white shadow-xl z-40">
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-gray-200 shadow-xl z-40">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -423,7 +420,7 @@ const ReelsPage = () => {
         <nav className="flex-1 p-4 space-y-2">
           <button
             onClick={() => handleNavigation('/dashboard')}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group"
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-50 transition-all text-left group"
           >
             <Home size={24} className="text-gray-600 group-hover:text-pink-500 transition-colors" />
             <span className="text-gray-700 font-medium text-lg group-hover:text-pink-500 transition-colors">Home</span>
@@ -434,12 +431,12 @@ const ReelsPage = () => {
             className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 transition-all text-left"
           >
             <Grid size={24} className="text-pink-500" />
-            <span className="text-pink-500 font-semibold text-lg">Reels</span>
+            <span className="text-pink-600 font-semibold text-lg">Reels</span>
           </button>
 
           <button
             onClick={() => handleNavigation('/userList')}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group"
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-50 transition-all text-left group"
           >
             <MessageCircle size={24} className="text-gray-600 group-hover:text-pink-500 transition-colors" />
             <span className="text-gray-700 font-medium text-lg group-hover:text-pink-500 transition-colors">Chat</span>
@@ -447,7 +444,7 @@ const ReelsPage = () => {
 
           <button
             onClick={() => handleNavigation('/myprofile')}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-all text-left group"
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-50 transition-all text-left group"
           >
             <User size={24} className="text-gray-600 group-hover:text-pink-500 transition-colors" />
             <span className="text-gray-700 font-medium text-lg group-hover:text-pink-500 transition-colors">Profile</span>
@@ -469,13 +466,14 @@ const ReelsPage = () => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-64 flex flex-col h-screen">
         {/* Header */}
-        <header className="bg-white/90 backdrop-blur-xl shadow-sm z-30 flex-shrink-0">
+        <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm z-30 flex-shrink-0">
           <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg lg:hidden">
                 <span className="text-white font-bold text-lg">R</span>
               </div>
-              <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">R U Ready</h1>
+              <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent lg:hidden">R U Ready</h1>
+              <h1 className="hidden lg:block text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">Reels</h1>
             </div>
 
             <button 
@@ -490,7 +488,7 @@ const ReelsPage = () => {
         {/* Reels Container */}
         <main 
           ref={containerRef}
-          className="flex-1 overflow-hidden relative"
+          className="flex-1 overflow-hidden relative bg-gradient-to-br from-gray-50 via-pink-50 to-purple-50"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onWheel={handleWheel}
@@ -500,8 +498,8 @@ const ReelsPage = () => {
               <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-purple-500 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                 <Grid size={48} className="text-white" />
               </div>
-              <p className="text-2xl font-bold mb-2">No reels yet</p>
-              <p className="text-gray-400">Create the first one and start sharing!</p>
+              <p className="text-2xl font-bold mb-2 text-gray-800">No reels yet</p>
+              <p className="text-gray-500">Create the first one and start sharing!</p>
             </div>
           ) : (
             <div 
@@ -513,12 +511,13 @@ const ReelsPage = () => {
               {reels.map((reel, index) => (
                 <div 
                   key={reel.id} 
-                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center p-4 lg:p-8"
+                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center"
                   style={{
                     transform: `translateY(${index * 100}%)`
                   }}
                 >
-                  <div className="w-full max-w-md lg:max-w-lg h-[calc(100%-2rem)] lg:h-[calc(100%-4rem)]">
+                  {/* Mobile: Full screen, Desktop: Centered with max width */}
+                  <div className="w-full h-full lg:w-auto lg:h-full lg:max-w-[480px] lg:aspect-[9/16]">
                     <ReelVideo 
                       reel={reel} 
                       isActive={index === currentReelIndex}
@@ -533,7 +532,7 @@ const ReelsPage = () => {
         {/* Scroll Indicator - Desktop */}
         {reels.length > 0 && (
           <div className="hidden lg:block fixed right-8 top-1/2 -translate-y-1/2 z-30">
-            <div className="flex flex-col gap-3 bg-white/30 backdrop-blur-lg p-3 rounded-full shadow-lg">
+            <div className="flex flex-col gap-3 bg-white/80 backdrop-blur-lg p-3 rounded-full shadow-lg border border-gray-200">
               {reels.map((_, index) => (
                 <button
                   key={index}
