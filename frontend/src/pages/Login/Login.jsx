@@ -218,7 +218,7 @@ const Login = () => {
                 className="text-pink-500 font-medium hover:text-pink-600 transition-colors text-sm sm:text-base"
                 disabled={isLoading}
               >
-                Forget password???
+                Forgot password???
               </button>
             </div>
 
@@ -287,3 +287,4 @@ const Login = () => {
 };
 
 export default Login;
+
