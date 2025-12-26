@@ -1,10 +1,12 @@
+import React from 'react'; // ← REQUIRED FIX: Import React for cloneElement
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { onForegroundMessage } from '../config/firebase';
+
 import Login from '../pages/Login/Login';
 import SignUp from "../pages/SignUp/SignUp";
-import Dashboard from '../pages/Dashboard/Dashboard';
+import Dashboard from '../pages/Dashboard/Dashboard'; // This is your HomeDashboard component
 import ForgotPassword from '../pages/Fogot-Password/Forgot-Password';
 import UsersListPage from '../pages/Users-List/Users-List';
 import MyProfile from '../pages/MyProfile/MyProfile';
@@ -16,14 +18,31 @@ import GoPremium from '../pages/GoPremium/Gopremium';
 import CallOverlay from "../components/call/CallOverlay";
 import useCallNotifications from "../hooks/useCallNotifications";
 
-// Protected Route using REAL Firebase auth
+// GuestAllowedRoute: Allows both guests and authenticated users
+// Passes isGuest={true} when user is not logged in
+const GuestAllowedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-xl font-medium text-gray-700">Loading...</div>
+      </div>
+    );
+  }
+
+  // Pass isGuest prop: true if no user, false if logged in
+  return React.cloneElement(children, { isGuest: !user });
+};
+
+// Protected Route: Only logged-in users
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-xl">Loading...</div>
+        <div className="text-xl font-medium text-gray-700">Loading...</div>
       </div>
     );
   }
@@ -31,14 +50,14 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" replace />;
 };
 
-// Public route: redirect logged-in users away from login/signup
+// Public Route: Only guests (redirect logged-in users away)
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-xl">Loading...</div>
+        <div className="text-xl font-medium text-gray-700">Loading...</div>
       </div>
     );
   }
@@ -46,14 +65,14 @@ const PublicRoute = ({ children }) => {
   return user ? <Navigate to="/dashboard" replace /> : children;
 };
 
-// Inner component that uses hooks
+// Main App Content with Routes
 const AppContent = () => {
   const [notification, setNotification] = useState(null);
-  
-  // 🔥 Setup FCM token when user logs in
+
+  // Setup call notifications (FCM token, etc.)
   useCallNotifications();
 
-  // 🔥 Listen for foreground messages
+  // Listen for foreground FCM messages
   useEffect(() => {
     let unsubscribe;
 
@@ -62,18 +81,18 @@ const AppContent = () => {
         console.log("📬 Foreground message received:", payload);
         setNotification(payload);
 
-        // Show browser notification
+        // Browser notification
         if (Notification.permission === "granted") {
-          const notificationTitle = payload.notification?.title || "New Notification";
-          const notificationBody = payload.notification?.body || "You have a new message";
-          
-          new Notification(notificationTitle, {
-            body: notificationBody,
+          const title = payload.notification?.title || "New Notification";
+          const body = payload.notification?.body || "You have a new message";
+
+          new Notification(title, {
+            body,
             icon: payload.notification?.icon || "/logo.png",
             badge: "/badge.png",
             tag: payload.data?.tag || "default",
             requireInteraction: false,
-            data: payload.data
+            data: payload.data,
           });
         }
       });
@@ -88,12 +107,11 @@ const AppContent = () => {
     };
   }, []);
 
-  // 🔥 Optional: Show notification toast/alert
+  // Optional: Handle notification (e.g., show toast)
   useEffect(() => {
     if (notification) {
-      console.log("🔔 New notification received:", notification);
-      // You can add toast notification here
-      // Example: toast.success(notification.notification?.body);
+      console.log("🔔 Notification:", notification);
+      // Add toast here if desired
     }
   }, [notification]);
 
@@ -101,127 +119,128 @@ const AppContent = () => {
     <>
       <CallOverlay />
       <Routes>
-        {/* Default redirect to login */}
+        {/* Default */}
         <Route path="/" element={<Navigate to="/login" replace />} />
-        
-        {/* Public routes */}
-        <Route 
-          path="/login" 
+
+        {/* Public Routes - Only for guests */}
+        <Route
+          path="/login"
           element={
             <PublicRoute>
               <Login />
             </PublicRoute>
-          } 
+          }
         />
-        <Route 
-          path="/signup" 
+        <Route
+          path="/signup"
           element={
             <PublicRoute>
               <SignUp />
             </PublicRoute>
-          } 
+          }
         />
-        <Route 
-          path="/forgot-password" 
+        <Route
+          path="/forgot-password"
           element={
             <PublicRoute>
               <ForgotPassword />
             </PublicRoute>
-          } 
+          }
         />
-        
-        {/* Protected routes */}
-        <Route 
-          path="/dashboard" 
+
+        {/* Guest + Logged-in: Dashboard with restrictions for guests */}
+        <Route
+          path="/dashboard"
           element={
-            <ProtectedRoute>
+            <GuestAllowedRoute>
               <Dashboard />
-            </ProtectedRoute>
-          } 
-          
+            </GuestAllowedRoute>
+          }
         />
-        <Route path="/userlist" element={<UsersListPage />} />
-        <Route 
-          path="/userlist/:userId" 
+
+        {/* Protected Routes - Require login */}
+        <Route path="/userlist" element={<UsersListPage />} /> {/* Base list - will redirect guests inside component if needed */}
+        <Route
+          path="/userlist/:userId"
           element={
             <ProtectedRoute>
               <UsersListPage />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/myprofile" 
+        <Route
+          path="/myprofile"
           element={
             <ProtectedRoute>
               <MyProfile />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/profile" 
+        <Route
+          path="/profile"
           element={
             <ProtectedRoute>
               <MyProfile />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/reels" 
+        <Route
+          path="/reels"
           element={
             <ProtectedRoute>
               <Reels />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/setting" 
+        <Route
+          path="/setting"
           element={
             <ProtectedRoute>
               <Settings />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/privacysafety" 
+        <Route
+          path="/privacysafety"
           element={
             <ProtectedRoute>
               <PrivacySafety />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/helpcenter" 
+        <Route
+          path="/helpcenter"
           element={
             <ProtectedRoute>
               <HelpCenter />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/gopremium" 
+        <Route
+          path="/gopremium"
           element={
             <ProtectedRoute>
               <GoPremium />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/premium" 
+        <Route
+          path="/premium"
           element={
             <ProtectedRoute>
               <GoPremium />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        {/* Catch all - redirect to login */}
+
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
   );
 };
 
-// Main component
+// Main App Entry
 const AppRoutes = () => {
   return (
     <BrowserRouter>
