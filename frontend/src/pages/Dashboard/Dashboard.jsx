@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, Heart, RefreshCw, Home, Grid, MessageCircle, User, X, 
@@ -12,7 +12,9 @@ import {
   getDoc,
   updateDoc,
   arrayUnion,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  limit
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
@@ -65,6 +67,7 @@ const LikesModal = ({ isOpen, onClose, likedProfiles, onMessageClick }) => {
                       src={profile.photoURL || 'https://via.placeholder.com/400'}
                       alt={profile.displayName}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
@@ -166,7 +169,12 @@ const ProfileCard = ({ profile, onLike, onSkip, onMessage }) => {
   return (
     <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl group">
       <div className="absolute inset-0">
-        <img src={profile.photoURL || 'https://via.placeholder.com/800x1200'} alt={profile.displayName || 'User'} className="w-full h-full object-cover" />
+        <img 
+          src={profile.photoURL || 'https://via.placeholder.com/800x1200'} 
+          alt={profile.displayName || 'User'} 
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
       </div>
       
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
@@ -200,7 +208,6 @@ const HomeDashboard = () => {
 
   const [currentUser, setCurrentUser] = useState(null);
   const [allProfiles, setAllProfiles] = useState([]);
-  const [filteredProfiles, setFilteredProfiles] = useState([]);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [showLikes, setShowLikes] = useState(false);
@@ -218,9 +225,9 @@ const HomeDashboard = () => {
   const isActive = (path) => location.pathname === path;
 
   // Navigation handler
-  const goTo = (path) => {
+  const goTo = useCallback((path) => {
     navigate(path);
-  };
+  }, [navigate]);
 
   // Fetch current user
   useEffect(() => {
@@ -251,6 +258,7 @@ const HomeDashboard = () => {
           console.error('Error fetching user data:', error);
         }
       }
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -265,22 +273,19 @@ const HomeDashboard = () => {
         .map(doc => ({ uid: doc.id, ...doc.data() }))
         .filter(profile => 
           profile.uid !== currentUser.uid && 
-          !currentUser.skippedUsers?.includes(profile.uid) // Filter out skipped users
+          !currentUser.skippedUsers?.includes(profile.uid) &&
+          !currentUser.likedUsers?.includes(profile.uid)
         );
       
       setAllProfiles(profiles);
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Apply filters
-  useEffect(() => {
-    if (allProfiles.length === 0) {
-      setFilteredProfiles([]);
-      return;
-    }
+  // Apply filters with useMemo for performance
+  const filteredProfiles = useMemo(() => {
+    if (allProfiles.length === 0) return [];
 
     let filtered = [...allProfiles];
 
@@ -298,9 +303,13 @@ const HomeDashboard = () => {
       filtered = filtered.filter(p => p.city?.toLowerCase().includes(filters.city.toLowerCase()));
     }
 
-    setFilteredProfiles(filtered);
-    setCurrentProfileIndex(0);
+    return filtered;
   }, [allProfiles, filters]);
+
+  // Reset index when filtered profiles change
+  useEffect(() => {
+    setCurrentProfileIndex(0);
+  }, [filteredProfiles]);
 
   const fetchLikedProfiles = async (likedUserIds) => {
     if (!likedUserIds || likedUserIds.length === 0) {
@@ -310,15 +319,19 @@ const HomeDashboard = () => {
 
     const profiles = [];
     for (const userId of likedUserIds) {
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (userDoc.exists()) {
-        profiles.push({ uid: userDoc.id, ...userDoc.data() });
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          profiles.push({ uid: userDoc.id, ...userDoc.data() });
+        }
+      } catch (error) {
+        console.error('Error fetching liked profile:', error);
       }
     }
     setLikedProfiles(profiles);
   };
 
-  const handleLike = async () => {
+  const handleLike = useCallback(async () => {
     if (!currentUser || filteredProfiles.length === 0) return;
     const likedProfile = filteredProfiles[currentProfileIndex];
 
@@ -329,23 +342,33 @@ const HomeDashboard = () => {
         updatedAt: serverTimestamp()
       });
 
-      setLikedProfiles([...likedProfiles, likedProfile]);
+      // Update local state immediately
+      setCurrentUser(prev => ({
+        ...prev,
+        likedUsers: [...(prev.likedUsers || []), likedProfile.uid]
+      }));
+
+      setLikedProfiles(prev => [...prev, likedProfile]);
       setStats(prev => ({ ...prev, likes: prev.likes + 1 }));
 
+      // Check for match
       const likedUserDoc = await getDoc(doc(db, 'users', likedProfile.uid));
       if (likedUserDoc.exists() && likedUserDoc.data().likedUsers?.includes(currentUser.uid)) {
         await updateDoc(userRef, { matches: (stats.matches || 0) + 1 });
         alert(`It's a match with ${likedProfile.displayName || 'this user'}! 🎉`);
       }
 
-      nextProfile();
+      // Move to next profile
+      if (currentProfileIndex < filteredProfiles.length - 1) {
+        setCurrentProfileIndex(prev => prev + 1);
+      }
     } catch (error) {
       console.error('Error liking profile:', error);
       alert('Failed to like profile.');
     }
-  };
+  }, [currentUser, filteredProfiles, currentProfileIndex, stats.matches]);
 
-  const handleSkip = async () => {
+  const handleSkip = useCallback(async () => {
     if (!currentUser || filteredProfiles.length === 0) return;
     const skippedProfile = filteredProfiles[currentProfileIndex];
 
@@ -356,34 +379,39 @@ const HomeDashboard = () => {
         updatedAt: serverTimestamp()
       });
 
-      // Update local state to reflect the skip
+      // Update local state immediately
       setCurrentUser(prev => ({
         ...prev,
         skippedUsers: [...(prev.skippedUsers || []), skippedProfile.uid]
       }));
 
-      nextProfile();
+      // Move to next profile automatically
+      if (currentProfileIndex < filteredProfiles.length - 1) {
+        setCurrentProfileIndex(prev => prev + 1);
+      } else {
+        setCurrentProfileIndex(0);
+      }
     } catch (error) {
       console.error('Error skipping profile:', error);
       alert('Failed to skip profile.');
     }
-  };
+  }, [currentUser, filteredProfiles, currentProfileIndex]);
 
-  const nextProfile = () => {
+  const nextProfile = useCallback(() => {
     setCurrentProfileIndex(prev => prev < filteredProfiles.length - 1 ? prev + 1 : 0);
-  };
+  }, [filteredProfiles.length]);
 
-  const prevProfile = () => {
+  const prevProfile = useCallback(() => {
     setCurrentProfileIndex(prev => prev > 0 ? prev - 1 : filteredProfiles.length - 1);
-  };
+  }, [filteredProfiles.length]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setFilters({ age: [18, 80], gender: 'Any', city: '' });
-  };
+  }, []);
 
-  const handleMessage = (userId) => {
+  const handleMessage = useCallback((userId) => {
     navigate(`/userlist/${userId}`);
-  };
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -425,9 +453,9 @@ const HomeDashboard = () => {
             <span className={`font-medium text-lg ${isActive('/userlist') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Chat</span>
           </button>
 
-          <button onClick={() => goTo('/profile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-left group ${isActive('/profile') ? 'bg-pink-50' : ''}`}>
-            <User size={24} className={isActive('/profile') ? 'text-pink-500' : 'text-gray-600 group-hover:text-pink-500'} />
-            <span className={`font-medium text-lg ${isActive('/profile') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Profile</span>
+          <button onClick={() => goTo('/myprofile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-left group ${isActive('/myprofile') ? 'bg-pink-50' : ''}`}>
+            <User size={24} className={isActive('/myprofile') ? 'text-pink-500' : 'text-gray-600 group-hover:text-pink-500'} />
+            <span className={`font-medium text-lg ${isActive('/myprofile') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Profile</span>
           </button>
         </nav>
 
