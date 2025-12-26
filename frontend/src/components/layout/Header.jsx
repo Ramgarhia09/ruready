@@ -14,9 +14,7 @@ export default function Header({ allUsers }) {
             <h1 className="text-2xl font-bold text-pink-500">Messages</h1>
           </div>
 
-          <p className="text-sm text-gray-500">
-            {allUsers.length} user{allUsers.length !== 1 && 's'} online
-          </p>
+         
         </div>
       </div>
     </header>
