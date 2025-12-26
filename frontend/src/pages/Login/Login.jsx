@@ -6,10 +6,11 @@ import { Button, Input, Divider } from '../../components/common';
 import { 
   signInWithEmailAndPassword, 
   signInWithPopup, 
-  GoogleAuthProvider 
+  GoogleAuthProvider,
+  signInAnonymously 
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from "../../config/firebase.js"; // Make sure this exports auth & db
+import { auth, db } from "../../config/firebase.js";
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +29,7 @@ const Login = () => {
   };
 
   // Helper to save/update user in Firestore
-  const saveUserToFirestore = async (user) => {
+  const saveUserToFirestore = async (user, isGuest = false) => {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
 
@@ -36,10 +37,11 @@ const Login = () => {
       // Create new user document
       await setDoc(userRef, {
         uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || user.email.split('@')[0],
+        email: user.email || '',
+        displayName: isGuest ? 'Guest User' : (user.displayName || user.email?.split('@')[0] || 'Anonymous'),
         photoURL: user.photoURL || '',
         online: true,
+        isGuest: isGuest,
         createdAt: serverTimestamp(),
         lastSeen: serverTimestamp()
       });
@@ -126,10 +128,26 @@ const Login = () => {
     }
   };
 
-  const handleGuestContinue = () => {
-    // Optional: You can create anonymous user or just use localStorage
-   
-    navigate('/dashboard');
+  const handleGuestContinue = async () => {
+    setGeneralError('');
+    setIsLoading(true);
+
+    try {
+      // Sign in anonymously with Firebase
+      const userCredential = await signInAnonymously(auth);
+      const user = userCredential.user;
+
+      // Save guest user to Firestore
+      await saveUserToFirestore(user, true);
+
+      console.log('Guest login successful:', user);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Guest login error:', error);
+      setGeneralError('Failed to continue as guest. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -223,7 +241,7 @@ const Login = () => {
             onClick={handleGuestContinue}
             disabled={isLoading}
           >
-            Continue as Guest
+            {isLoading ? 'Signing in...' : 'Continue as Guest'}
           </Button>
 
           <button
