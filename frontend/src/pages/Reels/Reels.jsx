@@ -358,6 +358,7 @@ const ReelsPage = () => {
 
   const handleTouchStart = (e) => {
     touchStartY.current = e.touches[0].clientY;
+    isScrolling.current = false; // Reset scrolling state
   };
 
   const handleTouchEnd = (e) => {
@@ -366,7 +367,8 @@ const ReelsPage = () => {
     const touchEndY = e.changedTouches[0].clientY;
     const diff = touchStartY.current - touchEndY;
 
-    if (Math.abs(diff) > 50) {
+    // Increased threshold for more deliberate swipes
+    if (Math.abs(diff) > 80) {
       isScrolling.current = true;
       if (diff > 0 && currentReelIndex < reels.length - 1) {
         setCurrentReelIndex(prev => prev + 1);
@@ -375,7 +377,7 @@ const ReelsPage = () => {
       }
       setTimeout(() => {
         isScrolling.current = false;
-      }, 600);
+      }, 700);
     }
   };
 
@@ -383,7 +385,8 @@ const ReelsPage = () => {
     e.preventDefault();
     if (isScrolling.current) return;
 
-    if (Math.abs(e.deltaY) > 30) {
+    // Increased threshold to prevent accidental scrolling
+    if (Math.abs(e.deltaY) > 50) {
       isScrolling.current = true;
       if (e.deltaY > 0 && currentReelIndex < reels.length - 1) {
         setCurrentReelIndex(prev => prev + 1);
@@ -392,7 +395,7 @@ const ReelsPage = () => {
       }
       setTimeout(() => {
         isScrolling.current = false;
-      }, 600);
+      }, 700);
     }
   };
 
@@ -488,10 +491,11 @@ const ReelsPage = () => {
         {/* Reels Container */}
         <main 
           ref={containerRef}
-          className="flex-1 overflow-hidden relative bg-gradient-to-br from-gray-50 via-pink-50 to-purple-50"
+          className="flex-1 overflow-hidden relative bg-gradient-to-br from-gray-50 via-pink-50 to-purple-50 touch-pan-y"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onWheel={handleWheel}
+          style={{ touchAction: 'pan-y' }}
         >
           {reels.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 px-4">
@@ -511,13 +515,13 @@ const ReelsPage = () => {
               {reels.map((reel, index) => (
                 <div 
                   key={reel.id} 
-                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center"
+                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8 lg:py-8 pb-24 lg:pb-8"
                   style={{
                     transform: `translateY(${index * 100}%)`
                   }}
                 >
-                  {/* Mobile: Full screen, Desktop: Centered with max width */}
-                  <div className="w-full h-full lg:w-auto lg:h-full lg:max-w-[480px] lg:aspect-[9/16]">
+                  {/* Mobile: Full screen with margin, Desktop: Centered with max width */}
+                  <div className="w-full h-full lg:w-auto lg:h-full lg:max-w-[480px] lg:aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl">
                     <ReelVideo 
                       reel={reel} 
                       isActive={index === currentReelIndex}
