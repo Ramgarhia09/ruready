@@ -358,7 +358,7 @@ const ReelsPage = () => {
 
   const handleTouchStart = (e) => {
     touchStartY.current = e.touches[0].clientY;
-    isScrolling.current = false; // Reset scrolling state
+    isScrolling.current = false;
   };
 
   const handleTouchEnd = (e) => {
@@ -367,7 +367,6 @@ const ReelsPage = () => {
     const touchEndY = e.changedTouches[0].clientY;
     const diff = touchStartY.current - touchEndY;
 
-    // Increased threshold for more deliberate swipes
     if (Math.abs(diff) > 80) {
       isScrolling.current = true;
       if (diff > 0 && currentReelIndex < reels.length - 1) {
@@ -385,7 +384,6 @@ const ReelsPage = () => {
     e.preventDefault();
     if (isScrolling.current) return;
 
-    // Increased threshold to prevent accidental scrolling
     if (Math.abs(e.deltaY) > 50) {
       isScrolling.current = true;
       if (e.deltaY > 0 && currentReelIndex < reels.length - 1) {
@@ -413,10 +411,11 @@ const ReelsPage = () => {
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-gray-200 shadow-xl z-40">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            {/* Pink "R" Logo */}
+            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-xl">R</span>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">Ruready</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Ruready</h1>
           </div>
         </div>
 
@@ -472,16 +471,20 @@ const ReelsPage = () => {
         <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm z-30 flex-shrink-0">
           <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg lg:hidden">
+              {/* Mobile Pink "R" Logo */}
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg lg:hidden">
                 <span className="text-white font-bold text-lg">R</span>
               </div>
-              <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent lg:hidden">R U Ready</h1>
-              <h1 className="hidden lg:block text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">Reels</h1>
+              <h1 className="text-xl lg:text-2xl font-bold text-gray-800 lg:hidden">Ruready</h1>
+              
+              {/* Desktop "Reels" in Pink */}
+              <h1 className="hidden lg:block text-2xl font-bold text-pink-600">Reels</h1>
             </div>
 
+            {/* + Button - Pink gradient */}
             <button 
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 p-3 rounded-full shadow-lg transition-all hover:scale-110 active:scale-95"
+              className="bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 p-3 rounded-full shadow-lg transition-all hover:scale-110 active:scale-95"
             >
               <Plus className="text-white" size={22} />
             </button>
@@ -520,7 +523,6 @@ const ReelsPage = () => {
                     transform: `translateY(${index * 100}%)`
                   }}
                 >
-                  {/* Mobile: Full screen with margin, Desktop: Centered with max width */}
                   <div className="w-full h-full lg:w-auto lg:h-full lg:max-w-[480px] lg:aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl">
                     <ReelVideo 
                       reel={reel} 
