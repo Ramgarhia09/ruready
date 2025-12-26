@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, Heart, RefreshCw, Home, Grid, MessageCircle, User, X, 
-  ChevronLeft, ChevronRight, Filter, Check, SkipForward
+  ChevronLeft, ChevronRight, Filter, Check, SkipForward, Lock
 } from 'lucide-react';
 import { 
   getFirestore, 
@@ -12,9 +12,7 @@ import {
   getDoc,
   updateDoc,
   arrayUnion,
-  serverTimestamp,
-  query,
-  limit
+  serverTimestamp
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
@@ -32,8 +30,33 @@ const calculateAge = (dob) => {
   return age;
 };
 
+// Guest Restriction Modal
+const GuestRestrictionModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md p-8 text-center">
+        <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Lock className="text-pink-500" size={40} />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-3">Guest Account Limitation</h2>
+        <p className="text-gray-600 mb-6">
+          Messaging is not available for guest accounts. Please create a full account to unlock all features including messaging, likes, and matches.
+        </p>
+        <button 
+          onClick={onClose}
+          className="bg-pink-500 hover:bg-pink-600 text-white py-3 px-8 rounded-full font-semibold transition-colors w-full"
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Likes Modal Component
-const LikesModal = ({ isOpen, onClose, likedProfiles, onMessageClick }) => {
+const LikesModal = ({ isOpen, onClose, likedProfiles, onMessageClick, isGuest }) => {
   if (!isOpen) return null;
 
   return (
@@ -67,7 +90,6 @@ const LikesModal = ({ isOpen, onClose, likedProfiles, onMessageClick }) => {
                       src={profile.photoURL || 'https://via.placeholder.com/400'}
                       alt={profile.displayName}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
@@ -78,9 +100,18 @@ const LikesModal = ({ isOpen, onClose, likedProfiles, onMessageClick }) => {
                     <div className="absolute top-3 right-3 flex gap-2">
                       <button 
                         onClick={() => onMessageClick(profile.uid)}
-                        className="bg-purple-500 p-2 rounded-full shadow-lg hover:bg-purple-600 transition-colors"
+                        className={`p-2 rounded-full shadow-lg transition-colors ${
+                          isGuest 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-purple-500 hover:bg-purple-600'
+                        }`}
+                        disabled={isGuest}
                       >
-                        <MessageCircle className="text-white" size={20} />
+                        {isGuest ? (
+                          <Lock className="text-white" size={20} />
+                        ) : (
+                          <MessageCircle className="text-white" size={20} />
+                        )}
                       </button>
                       <div className="bg-pink-500 p-2 rounded-full shadow-lg">
                         <Heart className="text-white fill-white" size={20} />
@@ -163,18 +194,21 @@ const FilterModal = ({ isOpen, onClose, filters, onFilterChange }) => {
 };
 
 // Profile Card Component
-const ProfileCard = ({ profile, onLike, onSkip, onMessage }) => {
+const ProfileCard = ({ profile, onLike, onSkip, onMessage, isGuest, onGuestRestriction }) => {
   const age = profile.dob ? calculateAge(profile.dob) : null;
+
+  const handleMessageClick = () => {
+    if (isGuest) {
+      onGuestRestriction();
+    } else {
+      onMessage();
+    }
+  };
 
   return (
     <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl group">
       <div className="absolute inset-0">
-        <img 
-          src={profile.photoURL || 'https://via.placeholder.com/800x1200'} 
-          alt={profile.displayName || 'User'} 
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+        <img src={profile.photoURL || 'https://via.placeholder.com/800x1200'} alt={profile.displayName || 'User'} className="w-full h-full object-cover" />
       </div>
       
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
@@ -190,8 +224,19 @@ const ProfileCard = ({ profile, onLike, onSkip, onMessage }) => {
         <button onClick={onSkip} className="bg-gray-500/80 backdrop-blur-md hover:bg-gray-600 p-4 rounded-full transition-all duration-200 hover:scale-110">
           <SkipForward className="text-white" size={32} />
         </button>
-        <button onClick={onMessage} className="bg-purple-500/80 backdrop-blur-md hover:bg-purple-500 p-4 rounded-full transition-all duration-200 hover:scale-110">
-          <MessageCircle className="text-white" size={32} />
+        <button 
+          onClick={handleMessageClick} 
+          className={`backdrop-blur-md p-4 rounded-full transition-all duration-200 hover:scale-110 ${
+            isGuest 
+              ? 'bg-gray-500/80 cursor-not-allowed' 
+              : 'bg-purple-500/80 hover:bg-purple-500'
+          }`}
+        >
+          {isGuest ? (
+            <Lock className="text-white" size={32} />
+          ) : (
+            <MessageCircle className="text-white" size={32} />
+          )}
         </button>
         <button onClick={onLike} className="bg-pink-500/80 backdrop-blur-md hover:bg-pink-500 p-4 rounded-full transition-all duration-200 hover:scale-110">
           <Heart className="text-white" size={32} />
@@ -207,10 +252,13 @@ const HomeDashboard = () => {
   const location = useLocation();
 
   const [currentUser, setCurrentUser] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [allProfiles, setAllProfiles] = useState([]);
+  const [filteredProfiles, setFilteredProfiles] = useState([]);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [showLikes, setShowLikes] = useState(false);
+  const [showGuestRestriction, setShowGuestRestriction] = useState(false);
   const [likedProfiles, setLikedProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ profileViews: 0, matches: 0, likes: 0 });
@@ -224,10 +272,14 @@ const HomeDashboard = () => {
   // Determine active route
   const isActive = (path) => location.pathname === path;
 
-  // Navigation handler
-  const goTo = useCallback((path) => {
+  // Navigation handler with guest check for chat
+  const goTo = (path) => {
+    if (path === '/userlist' && isGuest) {
+      setShowGuestRestriction(true);
+      return;
+    }
     navigate(path);
-  }, [navigate]);
+  };
 
   // Fetch current user
   useEffect(() => {
@@ -236,6 +288,9 @@ const HomeDashboard = () => {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           const userData = userDoc.exists() ? userDoc.data() : {};
+          
+          const guestStatus = userData.isGuest === true || user.isAnonymous === true;
+          setIsGuest(guestStatus);
           
           setCurrentUser({
             uid: user.uid,
@@ -258,12 +313,11 @@ const HomeDashboard = () => {
           console.error('Error fetching user data:', error);
         }
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Fetch all profiles (exclude current user and skipped users)
+  // Fetch all profiles (exclude current user, skipped users, and incomplete/anonymous profiles)
   useEffect(() => {
     if (!currentUser) return;
 
@@ -271,21 +325,32 @@ const HomeDashboard = () => {
     const unsubscribe = onSnapshot(usersRef, (snapshot) => {
       const profiles = snapshot.docs
         .map(doc => ({ uid: doc.id, ...doc.data() }))
-        .filter(profile => 
-          profile.uid !== currentUser.uid && 
-          !currentUser.skippedUsers?.includes(profile.uid) &&
-          !currentUser.likedUsers?.includes(profile.uid)
-        );
+        .filter(profile => {
+          // Must have a displayName (i.e., properly created profile)
+          if (!profile.displayName || profile.displayName.trim() === '') return false;
+          
+          // Exclude current user
+          if (profile.uid === currentUser.uid) return false;
+          
+          // Exclude skipped users
+          if (currentUser.skippedUsers?.includes(profile.uid)) return false;
+
+          return true;
+        });
       
       setAllProfiles(profiles);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Apply filters with useMemo for performance
-  const filteredProfiles = useMemo(() => {
-    if (allProfiles.length === 0) return [];
+  // Apply filters
+  useEffect(() => {
+    if (allProfiles.length === 0) {
+      setFilteredProfiles([]);
+      return;
+    }
 
     let filtered = [...allProfiles];
 
@@ -303,13 +368,9 @@ const HomeDashboard = () => {
       filtered = filtered.filter(p => p.city?.toLowerCase().includes(filters.city.toLowerCase()));
     }
 
-    return filtered;
-  }, [allProfiles, filters]);
-
-  // Reset index when filtered profiles change
-  useEffect(() => {
+    setFilteredProfiles(filtered);
     setCurrentProfileIndex(0);
-  }, [filteredProfiles]);
+  }, [allProfiles, filters]);
 
   const fetchLikedProfiles = async (likedUserIds) => {
     if (!likedUserIds || likedUserIds.length === 0) {
@@ -319,19 +380,19 @@ const HomeDashboard = () => {
 
     const profiles = [];
     for (const userId of likedUserIds) {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        if (userDoc.exists()) {
-          profiles.push({ uid: userDoc.id, ...userDoc.data() });
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        // Only include liked profiles that have a name
+        if (data.displayName && data.displayName.trim() !== '') {
+          profiles.push({ uid: userDoc.id, ...data });
         }
-      } catch (error) {
-        console.error('Error fetching liked profile:', error);
       }
     }
     setLikedProfiles(profiles);
   };
 
-  const handleLike = useCallback(async () => {
+  const handleLike = async () => {
     if (!currentUser || filteredProfiles.length === 0) return;
     const likedProfile = filteredProfiles[currentProfileIndex];
 
@@ -342,33 +403,23 @@ const HomeDashboard = () => {
         updatedAt: serverTimestamp()
       });
 
-      // Update local state immediately
-      setCurrentUser(prev => ({
-        ...prev,
-        likedUsers: [...(prev.likedUsers || []), likedProfile.uid]
-      }));
-
       setLikedProfiles(prev => [...prev, likedProfile]);
       setStats(prev => ({ ...prev, likes: prev.likes + 1 }));
 
-      // Check for match
       const likedUserDoc = await getDoc(doc(db, 'users', likedProfile.uid));
       if (likedUserDoc.exists() && likedUserDoc.data().likedUsers?.includes(currentUser.uid)) {
         await updateDoc(userRef, { matches: (stats.matches || 0) + 1 });
         alert(`It's a match with ${likedProfile.displayName || 'this user'}! 🎉`);
       }
 
-      // Move to next profile
-      if (currentProfileIndex < filteredProfiles.length - 1) {
-        setCurrentProfileIndex(prev => prev + 1);
-      }
+      nextProfile();
     } catch (error) {
       console.error('Error liking profile:', error);
       alert('Failed to like profile.');
     }
-  }, [currentUser, filteredProfiles, currentProfileIndex, stats.matches]);
+  };
 
-  const handleSkip = useCallback(async () => {
+  const handleSkip = async () => {
     if (!currentUser || filteredProfiles.length === 0) return;
     const skippedProfile = filteredProfiles[currentProfileIndex];
 
@@ -379,39 +430,37 @@ const HomeDashboard = () => {
         updatedAt: serverTimestamp()
       });
 
-      // Update local state immediately
       setCurrentUser(prev => ({
         ...prev,
         skippedUsers: [...(prev.skippedUsers || []), skippedProfile.uid]
       }));
 
-      // Move to next profile automatically
-      if (currentProfileIndex < filteredProfiles.length - 1) {
-        setCurrentProfileIndex(prev => prev + 1);
-      } else {
-        setCurrentProfileIndex(0);
-      }
+      nextProfile();
     } catch (error) {
       console.error('Error skipping profile:', error);
       alert('Failed to skip profile.');
     }
-  }, [currentUser, filteredProfiles, currentProfileIndex]);
+  };
 
-  const nextProfile = useCallback(() => {
+  const nextProfile = () => {
     setCurrentProfileIndex(prev => prev < filteredProfiles.length - 1 ? prev + 1 : 0);
-  }, [filteredProfiles.length]);
+  };
 
-  const prevProfile = useCallback(() => {
+  const prevProfile = () => {
     setCurrentProfileIndex(prev => prev > 0 ? prev - 1 : filteredProfiles.length - 1);
-  }, [filteredProfiles.length]);
+  };
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = () => {
     setFilters({ age: [18, 80], gender: 'Any', city: '' });
-  }, []);
+  };
 
-  const handleMessage = useCallback((userId) => {
+  const handleMessage = (userId) => {
+    if (isGuest) {
+      setShowGuestRestriction(true);
+      return;
+    }
     navigate(`/userlist/${userId}`);
-  }, [navigate]);
+  };
 
   if (loading) {
     return (
@@ -435,6 +484,11 @@ const HomeDashboard = () => {
             </div>
             <h1 className="text-2xl font-bold text-gray-800">Ruready</h1>
           </div>
+          {isGuest && (
+            <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+              <p className="text-xs text-yellow-800 font-medium">Guest Mode</p>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
@@ -448,25 +502,22 @@ const HomeDashboard = () => {
             <span className={`font-medium text-lg ${isActive('/reels') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Reels</span>
           </button>
 
-          <button onClick={() => goTo('/userlist')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-left group ${isActive('/userlist') ? 'bg-pink-50' : ''}`}>
-            <MessageCircle size={24} className={isActive('/userlist') ? 'text-pink-500' : 'text-gray-600 group-hover:text-pink-500'} />
-            <span className={`font-medium text-lg ${isActive('/userlist') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Chat</span>
+          <button onClick={() => goTo('/userlist')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-left group relative ${isActive('/userlist') ? 'bg-pink-50' : ''}`}>
+            {isGuest ? (
+              <Lock size={24} className="text-gray-400" />
+            ) : (
+              <MessageCircle size={24} className={isActive('/userlist') ? 'text-pink-500' : 'text-gray-600 group-hover:text-pink-500'} />
+            )}
+            <span className={`font-medium text-lg ${isGuest ? 'text-gray-400' : isActive('/userlist') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Chat</span>
           </button>
 
-          <button onClick={() => goTo('/myprofile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-left group ${isActive('/myprofile') ? 'bg-pink-50' : ''}`}>
-            <User size={24} className={isActive('/myprofile') ? 'text-pink-500' : 'text-gray-600 group-hover:text-pink-500'} />
-            <span className={`font-medium text-lg ${isActive('/myprofile') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Profile</span>
+          <button onClick={() => goTo('/profile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-left group ${isActive('/profile') ? 'bg-pink-50' : ''}`}>
+            <User size={24} className={isActive('/profile') ? 'text-pink-500' : 'text-gray-600 group-hover:text-pink-500'} />
+            <span className={`font-medium text-lg ${isActive('/profile') ? 'text-pink-500' : 'text-gray-700 group-hover:text-pink-500'}`}>Profile</span>
           </button>
         </nav>
 
-        <div className="p-4 m-4 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl">
-          <h3 className="font-semibold text-gray-800 mb-3">Your Stats</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-gray-600">Profile Views</span><span className="font-semibold text-pink-500">{stats.profileViews}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Matches</span><span className="font-semibold text-pink-500">{stats.matches}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Likes Given</span><span className="font-semibold text-pink-500">{stats.likes}</span></div>
-          </div>
-        </div>
+        
       </aside>
 
       {/* Main Content */}
@@ -506,6 +557,8 @@ const HomeDashboard = () => {
                     onLike={handleLike}
                     onSkip={handleSkip}
                     onMessage={() => handleMessage(filteredProfiles[currentProfileIndex].uid)}
+                    isGuest={isGuest}
+                    onGuestRestriction={() => setShowGuestRestriction(true)}
                   />
 
                   {filteredProfiles.length > 1 && (
@@ -565,7 +618,8 @@ const HomeDashboard = () => {
 
       {/* Modals */}
       <FilterModal isOpen={showFilters} onClose={() => setShowFilters(false)} filters={filters} onFilterChange={setFilters} />
-      <LikesModal isOpen={showLikes} onClose={() => setShowLikes(false)} likedProfiles={likedProfiles} onMessageClick={handleMessage} />
+      <LikesModal isOpen={showLikes} onClose={() => setShowLikes(false)} likedProfiles={likedProfiles} onMessageClick={handleMessage} isGuest={isGuest} />
+      <GuestRestrictionModal isOpen={showGuestRestriction} onClose={() => setShowGuestRestriction(false)} />
     </div>
   );
 };
